@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -177,25 +178,43 @@ private fun PlanSection(model: OrganizerModel) {
                 enabled = !model.busy && (model.plan?.moves?.isNotEmpty() == true),
             ) { Text("確認搬移") }
         }
-        model.plan?.let { plan ->
-            Text(
-                "計畫：${plan.moves.size} 筆將搬移，${plan.errors.size} 筆無日期",
-                modifier = Modifier.padding(top = 8.dp),
-            )
+        PlanResultView(plan = model.plan, outcomes = model.outcomes)
+    }
+}
+
+/**
+ * Renders the plan detail and execution-result lists. Each scrolling list is capped with
+ * `heightIn(max)` so a large plan or failure set scrolls within a bounded area instead of
+ * growing tall enough to squeeze the file/preview panes above it. Kept as an internal,
+ * data-only composable so its rendering can be covered by a UI test.
+ */
+@Composable
+internal fun PlanResultView(plan: MovePlan?, outcomes: List<MoveOutcome>) {
+    plan?.let {
+        Text(
+            "計畫：${plan.moves.size} 筆將搬移，${plan.errors.size} 筆無日期",
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        if (plan.moves.isNotEmpty()) {
+            LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 160.dp).padding(top = 4.dp)) {
+                items(plan.moves) { move ->
+                    Text("${move.source.fileName}  →  ${move.target.parent.fileName}")
+                }
+            }
         }
-        if (model.outcomes.isNotEmpty()) {
-            val succeeded = model.outcomes.count { it.success }
-            val failed = model.outcomes.size - succeeded
-            Text("執行結果：成功 $succeeded、失敗 $failed", modifier = Modifier.padding(top = 8.dp))
-            val failures = model.outcomes.filter { !it.success }
-            if (failures.isNotEmpty()) {
-                LazyColumn(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                    items(failures) { outcome ->
-                        Text(
-                            "✗ ${outcome.item.source.fileName}：${outcome.reason}",
-                            color = Color(0xFFB00020),
-                        )
-                    }
+    }
+    if (outcomes.isNotEmpty()) {
+        val succeeded = outcomes.count { it.success }
+        val failed = outcomes.size - succeeded
+        Text("執行結果：成功 $succeeded、失敗 $failed", modifier = Modifier.padding(top = 8.dp))
+        val failures = outcomes.filter { !it.success }
+        if (failures.isNotEmpty()) {
+            LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 160.dp).padding(top = 4.dp)) {
+                items(failures) { outcome ->
+                    Text(
+                        "✗ ${outcome.item.source.fileName}：${outcome.reason}",
+                        color = Color(0xFFB00020),
+                    )
                 }
             }
         }
@@ -278,6 +297,11 @@ private class OrganizerModel(private val scope: CoroutineScope) {
                     statusMessage = null
                 }
             } catch (e: Exception) {
+                // Drop any prior folder's results so a failed scan leaves no stale, executable state.
+                sourceFolder = folder
+                entries = emptyList()
+                datedPhotos = emptyList()
+                undatedPhotos = emptyList()
                 statusMessage = "掃描失敗：${e.message ?: e.javaClass.simpleName}"
             } finally {
                 busy = false

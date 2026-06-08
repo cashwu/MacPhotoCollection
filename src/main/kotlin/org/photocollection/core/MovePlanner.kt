@@ -10,12 +10,13 @@ object MovePlanner {
      * path API, not string concatenation); undated files go to the error list.
      */
     fun plan(sourceFolder: Path, entries: List<Pair<PhotoFile, DateResult>>): MovePlan {
+        val root = sourceFolder.toAbsolutePath()
         val moves = mutableListOf<MoveItem>()
         val errors = mutableListOf<PhotoFile>()
         for ((photo, result) in entries) {
             when (result) {
                 is DateResult.Found -> {
-                    val target = sourceFolder.resolve(result.date.folderName()).resolve(photo.fileName)
+                    val target = root.resolve(result.date.folderName()).resolve(photo.fileName)
                     moves += MoveItem(photo, target)
                 }
                 is DateResult.NoDate -> errors += photo

@@ -13,6 +13,8 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation("com.drewnoakes:metadata-extractor:2.19.0")
     testImplementation(kotlin("test"))
+    @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+    testImplementation(compose.uiTest)
 }
 
 tasks.test {
@@ -30,6 +32,9 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg)
             packageName = "MacPhotoCollection"
             packageVersion = "1.0.0"
+            macOS {
+                iconFile.set(project.file("src/main/resources/icons/app-icon.icns"))
+            }
         }
     }
 }

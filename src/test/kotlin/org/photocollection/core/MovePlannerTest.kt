@@ -2,11 +2,13 @@ package org.photocollection.core
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.time.LocalDate
 import kotlin.io.path.createFile
 import kotlin.io.path.listDirectoryEntries
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class MovePlannerTest {
 
@@ -42,6 +44,20 @@ class MovePlannerTest {
             plan.moves[1].target,
         )
         assertEquals(listOf("IMG3.jpg"), plan.errors.map { it.fileName })
+    }
+
+    @Test
+    fun `target path is absolute even when the source folder is relative`() {
+        val relativeFolder = Paths.get("photos")
+        val entries = listOf(dated(relativeFolder, "IMG1.jpg", LocalDate.of(2024, 3, 15)))
+
+        val plan = MovePlanner.plan(relativeFolder, entries)
+
+        assertTrue(plan.moves[0].target.isAbsolute, "target must be an absolute path")
+        assertEquals(
+            relativeFolder.toAbsolutePath().resolve("2024-03-15").resolve("IMG1.jpg"),
+            plan.moves[0].target,
+        )
     }
 
     @Test
