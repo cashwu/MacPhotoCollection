@@ -1,2 +1,6 @@
 .spectra/
 openspec/.vector-search.db*
+
+# Gradle / Kotlin build output
+.gradle/
+build/
