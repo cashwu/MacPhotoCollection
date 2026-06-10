@@ -12,8 +12,13 @@ import kotlin.test.assertTrue
 
 class MovePlannerTest {
 
-    private fun dated(folder: Path, name: String, date: LocalDate): Pair<PhotoFile, DateResult> =
-        PhotoFile(folder.resolve(name)) to DateResult.Found(CaptureDate(date))
+    private fun dated(
+        folder: Path,
+        name: String,
+        date: LocalDate,
+        source: DateSource = DateSource.EXIF,
+    ): Pair<PhotoFile, DateResult> =
+        PhotoFile(folder.resolve(name)) to DateResult.Found(CaptureDate(date, source))
 
     private fun yearOnly(folder: Path, name: String, year: Int): Pair<PhotoFile, DateResult> =
         PhotoFile(folder.resolve(name)) to DateResult.YearOnly(year)
@@ -59,6 +64,28 @@ class MovePlannerTest {
         assertEquals(listOf("IMG4.jpg"), plan.errors.map { it.fileName })
     }
 
+    // spec `photo-organization` — "plan grouping" example: each move item carries the file's
+    // resolved date result and source, regardless of which tier produced it.
+    @Test
+    fun `each move item carries the date result that produced its target`() {
+        val folder = Files.createTempDirectory("planner-test")
+        val march15 = LocalDate.of(2024, 3, 15)
+        val entries = listOf(
+            dated(folder, "IMG1.jpg", march15, DateSource.EXIF),
+            dated(folder, "IMG2.jpg", march15, DateSource.FILENAME),
+            yearOnly(folder, "IMG3.jpg", 2008),
+            undated(folder, "IMG4.jpg"),
+        )
+
+        val plan = MovePlanner.plan(folder, entries)
+
+        fun resultOf(name: String): DateResult = plan.moves.first { it.source.fileName == name }.dateResult
+        assertEquals(DateResult.Found(CaptureDate(march15, DateSource.EXIF)), resultOf("IMG1.jpg"))
+        assertEquals(DateResult.Found(CaptureDate(march15, DateSource.FILENAME)), resultOf("IMG2.jpg"))
+        assertEquals(DateResult.YearOnly(2008), resultOf("IMG3.jpg"))
+        assertEquals(DateResult.NoDate, resultOf("IMG4.jpg"))
+    }
+
     @Test
     fun `target paths are absolute even when the source folder is relative`() {
         val relativeFolder = Paths.get("photos")
@@ -83,7 +110,7 @@ class MovePlannerTest {
         val img = folder.resolve("IMG1.jpg").createFile()
         val before = folder.listDirectoryEntries().map { it.fileName.toString() }.toSet()
 
-        MovePlanner.plan(folder, listOf(PhotoFile(img) to DateResult.Found(CaptureDate(LocalDate.of(2024, 3, 15)))))
+        MovePlanner.plan(folder, listOf(PhotoFile(img) to DateResult.Found(CaptureDate(LocalDate.of(2024, 3, 15), DateSource.EXIF))))
 
         val after = folder.listDirectoryEntries().map { it.fileName.toString() }.toSet()
         assertEquals(before, after)

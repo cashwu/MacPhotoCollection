@@ -30,7 +30,7 @@ object MovePlanner {
                     root.resolve(NO_EXIF_FOLDER)
                 }
             }
-            moves += MoveItem(photo, target.resolve(photo.fileName))
+            moves += MoveItem(photo, target.resolve(photo.fileName), result)
         }
         return MovePlan(moves, errors)
     }

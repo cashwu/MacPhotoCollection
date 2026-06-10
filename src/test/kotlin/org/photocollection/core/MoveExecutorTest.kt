@@ -2,6 +2,7 @@ package org.photocollection.core
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.LocalDate
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.readText
@@ -19,6 +20,10 @@ class MoveExecutorTest {
         return PhotoFile(path)
     }
 
+    // MoveExecutor ignores dateResult; supply a representative EXIF result so each item matches its target.
+    private fun exif(year: Int, month: Int, day: Int): DateResult =
+        DateResult.Found(CaptureDate(LocalDate.of(year, month, day), DateSource.EXIF))
+
     // spec — "Successful execution": nested year/date folders and the shared no-exif folder
     @Test
     fun `creates nested date and no-exif subfolders and moves files reporting success`() {
@@ -31,9 +36,9 @@ class MoveExecutorTest {
         val noExifTarget = folder.resolve("no-exif").resolve("C.jpg")
         val plan = MovePlan(
             moves = listOf(
-                MoveItem(a, datedTarget),
-                MoveItem(b, yearOnlyTarget),
-                MoveItem(c, noExifTarget),
+                MoveItem(a, datedTarget, exif(2024, 3, 15)),
+                MoveItem(b, yearOnlyTarget, DateResult.YearOnly(2008)),
+                MoveItem(c, noExifTarget, DateResult.NoDate),
             ),
             errors = listOf(c),
         )
@@ -61,8 +66,8 @@ class MoveExecutorTest {
         val sharedTarget = folder.resolve("no-exif").resolve("screenshot.png")
         val plan = MovePlan(
             moves = listOf(
-                MoveItem(winner, sharedTarget),
-                MoveItem(loser, sharedTarget),
+                MoveItem(winner, sharedTarget, DateResult.NoDate),
+                MoveItem(loser, sharedTarget, DateResult.NoDate),
             ),
             errors = listOf(winner, loser),
         )
@@ -88,9 +93,9 @@ class MoveExecutorTest {
         val sharedTarget = dateFolder.resolve("SAME.jpg")
         val plan = MovePlan(
             moves = listOf(
-                MoveItem(a, dateFolder.resolve("A.jpg")),
-                MoveItem(b, sharedTarget),
-                MoveItem(c, sharedTarget),
+                MoveItem(a, dateFolder.resolve("A.jpg"), exif(2024, 3, 15)),
+                MoveItem(b, sharedTarget, exif(2024, 3, 15)),
+                MoveItem(c, sharedTarget, exif(2024, 3, 15)),
             ),
             errors = emptyList(),
         )
@@ -118,8 +123,8 @@ class MoveExecutorTest {
         val ok = sourceFile(folder, "E.jpg", "e-content")
         val plan = MovePlan(
             moves = listOf(
-                MoveItem(blocked, folder.resolve("2024-03-15").resolve("D.jpg")),
-                MoveItem(ok, folder.resolve("2024-03-16").resolve("E.jpg")),
+                MoveItem(blocked, folder.resolve("2024-03-15").resolve("D.jpg"), exif(2024, 3, 15)),
+                MoveItem(ok, folder.resolve("2024-03-16").resolve("E.jpg"), exif(2024, 3, 16)),
             ),
             errors = emptyList(),
         )

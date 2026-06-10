@@ -43,6 +43,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.skia.Image as SkiaImage
 import org.photocollection.core.DateResult
+import org.photocollection.core.DateSource
 import org.photocollection.core.ExifReader
 import org.photocollection.core.MoveExecutor
 import org.photocollection.core.MoveOutcome
@@ -193,13 +194,21 @@ private fun PlanSection(model: OrganizerModel) {
 internal fun PlanResultView(plan: MovePlan?, outcomes: List<MoveOutcome>) {
     plan?.let {
         Text(
-            "計畫：${plan.moves.size} 筆將搬移，其中 ${plan.errors.size} 筆無 EXIF 日期搬往 no-exif/",
+            "計畫：${plan.moves.size} 筆將搬移，其中 ${plan.errors.size} 筆無法判斷日期搬往 no-exif/",
             modifier = Modifier.padding(top = 8.dp),
+        )
+        Text(
+            "日期來源：" + DateSource.values().joinToString("、") { source ->
+                "$source ${plan.moves.count { dateSourceOf(it.dateResult) == source }}"
+            },
+            modifier = Modifier.padding(top = 4.dp),
         )
         if (plan.moves.isNotEmpty()) {
             LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 160.dp).padding(top = 4.dp)) {
                 items(plan.moves) { move ->
-                    Text("${move.source.fileName}  →  ${move.target.parent.fileName}")
+                    val source = dateSourceOf(move.dateResult)
+                    val marker = if (source != null) "  [$source]" else ""
+                    Text("${move.source.fileName}  →  ${move.target.parent.fileName}$marker")
                 }
             }
         }
@@ -241,6 +250,16 @@ private suspend fun loadPreview(path: Path): ImageBitmap? = withContext(Dispatch
 internal fun organizableTargetFolder(result: DateResult): String? = when (result) {
     is DateResult.Found -> result.date.folderName()
     is DateResult.YearOnly -> yearOnlyFolderName(result.year)
+    is DateResult.NoDate -> null
+}
+
+/**
+ * The date source to show beside a planned move in the preview — the tier that produced its date.
+ * A year-only result is only produced by EXIF; a no-date file has no source (it goes to `no-exif/`).
+ */
+internal fun dateSourceOf(result: DateResult): DateSource? = when (result) {
+    is DateResult.Found -> result.date.source
+    is DateResult.YearOnly -> DateSource.EXIF
     is DateResult.NoDate -> null
 }
 

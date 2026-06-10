@@ -18,8 +18,11 @@ fun yearFolderName(year: Int): String = "%04d".format(year)
 /** The `yyyy-00-00` date-folder name for a year-only result, nested under [yearFolderName]. */
 fun yearOnlyFolderName(year: Int): String = "%04d-00-00".format(year)
 
-/** A capture date taken from EXIF, with no time-of-day or timezone component. */
-data class CaptureDate(val date: LocalDate) {
+/** Which tier of the date fallback chain produced a capture date. */
+enum class DateSource { EXIF, FILENAME, FILE_SYSTEM }
+
+/** A capture date with no time-of-day or timezone component, tagged with the tier that produced it. */
+data class CaptureDate(val date: LocalDate, val source: DateSource) {
     /** The `yyyy-MM-dd` form used as the target date-folder name. */
     fun folderName(): String = date.format(ISO_DATE)
 
@@ -31,8 +34,12 @@ data class CaptureDate(val date: LocalDate) {
     }
 }
 
-/** A single planned move: a source photo and its absolute target path. */
-data class MoveItem(val source: PhotoFile, val target: Path)
+/**
+ * A single planned move: a source photo, its absolute target path, and the date result that
+ * produced the target. [dateResult] carries the resolved date and its [DateSource] so the plan
+ * preview can show which fallback tier dated the file; the planner stores it without branching.
+ */
+data class MoveItem(val source: PhotoFile, val target: Path, val dateResult: DateResult)
 
 /**
  * A computed move plan. [moves] holds every scanned file's target — dated files to a nested

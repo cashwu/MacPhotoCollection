@@ -2,6 +2,7 @@ package org.photocollection.ui
 
 import org.photocollection.core.CaptureDate
 import org.photocollection.core.DateResult
+import org.photocollection.core.DateSource
 import org.photocollection.core.PhotoFile
 import java.nio.file.Paths
 import java.time.LocalDate
@@ -21,7 +22,7 @@ class OrganizerScanMappingTest {
 
     @Test
     fun `full date maps to its yyyy-MM-dd target folder`() {
-        assertEquals("2024-03-15", organizableTargetFolder(DateResult.Found(CaptureDate(LocalDate.of(2024, 3, 15)))))
+        assertEquals("2024-03-15", organizableTargetFolder(DateResult.Found(CaptureDate(LocalDate.of(2024, 3, 15), DateSource.EXIF))))
     }
 
     @Test
@@ -37,7 +38,7 @@ class OrganizerScanMappingTest {
     @Test
     fun `scan with full year-only and no-date partitions every file into exactly one list`() {
         val scanned = listOf(
-            photo("full.jpg") to DateResult.Found(CaptureDate(LocalDate.of(2024, 3, 15))),
+            photo("full.jpg") to DateResult.Found(CaptureDate(LocalDate.of(2024, 3, 15), DateSource.EXIF)),
             photo("year.png") to DateResult.YearOnly(2008),
             photo("none.png") to DateResult.NoDate,
         )
