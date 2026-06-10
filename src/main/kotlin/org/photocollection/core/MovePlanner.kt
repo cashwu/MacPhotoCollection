@@ -5,15 +5,15 @@ import java.nio.file.Path
 object MovePlanner {
 
     /**
-     * Compute a [MovePlan] from EXIF-resolved [entries] without touching the file system. Every
+     * Compute a [MovePlan] from date-classified [entries] without touching the file system. Every
      * target is built segment by segment with the path API (not string concatenation) so planning
      * and execution agree on the exact path. A full date targets
      * `<sourceFolder>/<yyyy>/<yyyy-MM-dd>/<fileName>`, a year-only result targets
      * `<sourceFolder>/<yyyy>/<yyyy-00-00>/<fileName>`, and a no-date file targets
      * `<sourceFolder>/no-exif/<fileName>`. A no-date file is also recorded in [MovePlan.errors] so
-     * the UI can show the count of files without a usable EXIF date; it therefore appears both as a
-     * move item and in the error list, and the error list means "no EXIF date (still moved to
-     * `no-exif/`)", not "not moved".
+     * the UI can show the count of files whose date could not be resolved; it therefore appears both
+     * as a move item and in the error list, and the error list means "no resolvable date (still moved
+     * to `no-exif/`)", not "not moved".
      */
     fun plan(sourceFolder: Path, entries: List<Pair<PhotoFile, DateResult>>): MovePlan {
         val root = sourceFolder.toAbsolutePath()

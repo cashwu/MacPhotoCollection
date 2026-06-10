@@ -9,7 +9,7 @@ data class PhotoFile(val path: Path) {
     val fileName: String get() = path.fileName.toString()
 }
 
-/** Shared folder name for files with no usable EXIF date. */
+/** Shared folder name for files whose date could not be resolved by any tier. */
 const val NO_EXIF_FOLDER: String = "no-exif"
 
 /** The four-digit zero-padded year folder name (for example year 7 renders as `0007`). */
