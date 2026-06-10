@@ -8,6 +8,7 @@ import java.time.LocalDate
 /** Outcome of reading a single file's EXIF capture date. */
 sealed interface DateResult {
     data class Found(val date: CaptureDate) : DateResult
+    data class YearOnly(val year: Int) : DateResult
     data object NoDate : DateResult
 }
 
@@ -36,24 +37,33 @@ object ExifReader {
      * Resolve a [DateResult] from the raw EXIF tag strings: `DateTimeOriginal` is primary and
      * `DateTimeDigitized` is the fallback only when the primary tag is absent. The date portion of
      * the raw string is parsed directly (no instant/epoch accessor), so no timezone conversion is
-     * applied. Absent, malformed, or zero-sentinel values yield [DateResult.NoDate].
+     * applied. Absent or unreadable values yield [DateResult.NoDate].
      */
     internal fun resolve(dateTimeOriginal: String?, dateTimeDigitized: String?): DateResult {
         val raw = dateTimeOriginal ?: dateTimeDigitized ?: return DateResult.NoDate
-        val date = parseExifDate(raw) ?: return DateResult.NoDate
-        return DateResult.Found(CaptureDate(date))
+        return parseExifDate(raw)
     }
 
-    /** Parse the `yyyy:MM:dd` date portion of an EXIF `yyyy:MM:dd HH:mm:ss` value, or null. */
-    private fun parseExifDate(raw: String): LocalDate? {
+    /**
+     * Classify the `yyyy:MM:dd` date portion of an EXIF `yyyy:MM:dd HH:mm:ss` value into three
+     * outcomes. A year in `1..9999` with month and day both `> 0` forming a valid calendar date is
+     * [DateResult.Found]; a year in `1..9999` whose month/day cannot form a valid date (zero, or
+     * non-zero but out of range like `2008:13:45`) is [DateResult.YearOnly] because the year is
+     * still reliable; a zero or out-of-range year, a non-numeric segment, or fewer than three
+     * segments is [DateResult.NoDate]. The `1..9999` bound keeps year folders at four digits.
+     */
+    private fun parseExifDate(raw: String): DateResult {
         val parts = raw.trim().substringBefore(' ').split(':')
-        if (parts.size != 3) return null
-        val (year, month, day) = parts.map { it.toIntOrNull() ?: return null }
-        if (year == 0 || month == 0 || day == 0) return null
-        return try {
-            LocalDate.of(year, month, day)
-        } catch (e: DateTimeException) {
-            null
+        if (parts.size != 3) return DateResult.NoDate
+        val (year, month, day) = parts.map { it.toIntOrNull() ?: return DateResult.NoDate }
+        if (year !in 1..9999) return DateResult.NoDate
+        if (month > 0 && day > 0) {
+            return try {
+                DateResult.Found(CaptureDate(LocalDate.of(year, month, day)))
+            } catch (e: DateTimeException) {
+                DateResult.YearOnly(year)
+            }
         }
+        return DateResult.YearOnly(year)
     }
 }

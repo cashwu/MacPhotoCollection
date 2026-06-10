@@ -28,8 +28,32 @@ class ExifReaderTest {
     }
 
     @Test
+    fun `zero month and day yield year-only with the parsed year`() {
+        val result = ExifReader.resolve(dateTimeOriginal = "2008:00:00 00:00:00", dateTimeDigitized = null)
+        assertEquals(DateResult.YearOnly(2008), result)
+    }
+
+    @Test
+    fun `out-of-range month yields year-only with the parsed year`() {
+        val result = ExifReader.resolve(dateTimeOriginal = "2008:13:45 00:00:00", dateTimeDigitized = null)
+        assertEquals(DateResult.YearOnly(2008), result)
+    }
+
+    @Test
+    fun `valid month with out-of-range day yields year-only via LocalDate failure`() {
+        val result = ExifReader.resolve(dateTimeOriginal = "2008:02:30 00:00:00", dateTimeDigitized = null)
+        assertEquals(DateResult.YearOnly(2008), result)
+    }
+
+    @Test
     fun `zero sentinel is treated as no date`() {
         val result = ExifReader.resolve(dateTimeOriginal = "0000:00:00 00:00:00", dateTimeDigitized = null)
+        assertIs<DateResult.NoDate>(result)
+    }
+
+    @Test
+    fun `year outside 1 to 9999 is treated as no date`() {
+        val result = ExifReader.resolve(dateTimeOriginal = "12024:03:15 00:00:00", dateTimeDigitized = null)
         assertIs<DateResult.NoDate>(result)
     }
 

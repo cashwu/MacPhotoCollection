@@ -36,12 +36,12 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.skia.Image as SkiaImage
-import org.photocollection.core.CaptureDate
 import org.photocollection.core.DateResult
 import org.photocollection.core.ExifReader
 import org.photocollection.core.MoveExecutor
@@ -51,6 +51,7 @@ import org.photocollection.core.MovePlanner
 import org.photocollection.core.PhotoFile
 import org.photocollection.core.PhotoScanner
 import org.photocollection.core.ScanResult
+import org.photocollection.core.yearOnlyFolderName
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.JFileChooser
@@ -68,7 +69,7 @@ fun App() {
                 Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     PhotoListPane(
                         title = "檔案清單 (${model.datedPhotos.size})",
-                        names = model.datedPhotos.map { "${it.first.fileName}  →  ${it.second.folderName()}" },
+                        names = model.datedPhotos.map { "${it.first.fileName}  →  ${it.second}" },
                         selectedIndex = model.selectedIndex,
                         onSelect = { model.select(it) },
                         modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -192,7 +193,7 @@ private fun PlanSection(model: OrganizerModel) {
 internal fun PlanResultView(plan: MovePlan?, outcomes: List<MoveOutcome>) {
     plan?.let {
         Text(
-            "計畫：${plan.moves.size} 筆將搬移，${plan.errors.size} 筆無日期",
+            "計畫：${plan.moves.size} 筆將搬移，其中 ${plan.errors.size} 筆無 EXIF 日期搬往 no-exif/",
             modifier = Modifier.padding(top = 8.dp),
         )
         if (plan.moves.isNotEmpty()) {
@@ -230,11 +231,24 @@ private suspend fun loadPreview(path: Path): ImageBitmap? = withContext(Dispatch
     }
 }
 
+/**
+ * The target date-folder display name for an organizable file — a full date shows its `yyyy-MM-dd`
+ * folder and a year-only result shows its `yyyy-00-00` folder — or null for a no-date file, which
+ * belongs in the error list rather than the organizable file list. Both organizable outcomes are
+ * moved, so neither may disappear from the displayed lists. Kept internal so the scan mapping is
+ * directly testable without the private [OrganizerModel].
+ */
+internal fun organizableTargetFolder(result: DateResult): String? = when (result) {
+    is DateResult.Found -> result.date.folderName()
+    is DateResult.YearOnly -> yearOnlyFolderName(result.year)
+    is DateResult.NoDate -> null
+}
+
 /** Holds organizer UI state and runs scan / plan / execute off the UI thread. */
 private class OrganizerModel(private val scope: CoroutineScope) {
     var sourceFolder by mutableStateOf<Path?>(null)
         private set
-    var datedPhotos by mutableStateOf<List<Pair<PhotoFile, CaptureDate>>>(emptyList())
+    var datedPhotos by mutableStateOf<List<Pair<PhotoFile, String>>>(emptyList())
         private set
     var undatedPhotos by mutableStateOf<List<PhotoFile>>(emptyList())
         private set
@@ -291,7 +305,7 @@ private class OrganizerModel(private val scope: CoroutineScope) {
                 } else {
                     entries = scanned
                     datedPhotos = scanned.mapNotNull { (photo, result) ->
-                        (result as? DateResult.Found)?.let { photo to it.date }
+                        organizableTargetFolder(result)?.let { photo to it }
                     }
                     undatedPhotos = scanned.filter { it.second is DateResult.NoDate }.map { it.first }
                     statusMessage = null
@@ -319,6 +333,9 @@ private class OrganizerModel(private val scope: CoroutineScope) {
         val current = plan ?: return
         busy = true
         statusMessage = "搬移中…"
+        // Clear any prior run's report up front (mirrors scan()), so a failure before the new
+        // results are assigned can't leave a stale success/failure report on screen.
+        outcomes = emptyList()
         scope.launch {
             try {
                 val results = withContext(Dispatchers.IO) { MoveExecutor.execute(current) }
@@ -336,13 +353,24 @@ private class OrganizerModel(private val scope: CoroutineScope) {
                     }
                     entries = rescanned
                     datedPhotos = rescanned.mapNotNull { (photo, result) ->
-                        (result as? DateResult.Found)?.let { photo to it.date }
+                        organizableTargetFolder(result)?.let { photo to it }
                     }
                     undatedPhotos = rescanned.filter { it.second is DateResult.NoDate }.map { it.first }
                     selectedIndex = -1
                 }
                 statusMessage = null
+            } catch (e: CancellationException) {
+                // Let coroutine cancellation propagate instead of swallowing it and wiping state.
+                throw e
             } catch (e: Exception) {
+                // Drop the pre-move lists and plan so a failed rescan can't leave stale state that
+                // would re-plan or re-execute already-moved files; the failure report stays visible
+                // (`outcomes` kept).
+                plan = null
+                entries = emptyList()
+                datedPhotos = emptyList()
+                undatedPhotos = emptyList()
+                selectedIndex = -1
                 statusMessage = "搬移後刷新失敗：${e.message ?: e.javaClass.simpleName}"
             } finally {
                 busy = false

@@ -20,10 +20,21 @@ class PlanResultViewTest {
 
     @Test
     fun `shows each move's target date folder and the execution summary`() = runComposeUiTest {
-        val source = PhotoFile(Paths.get("/photos/IMG1.jpg"))
-        val target = Paths.get("/photos/2024-03-15/IMG1.jpg")
-        val plan = MovePlan(moves = listOf(MoveItem(source, target)), errors = emptyList())
-        val outcomes = listOf(MoveOutcome(MoveItem(source, target), success = false, reason = "目標已存在"))
+        val full = PhotoFile(Paths.get("/photos/FULL.jpg"))
+        val fullTarget = Paths.get("/photos/2024/2024-03-15/FULL.jpg")
+        val yearOnly = PhotoFile(Paths.get("/photos/YEAR.png"))
+        val yearOnlyTarget = Paths.get("/photos/2008/2008-00-00/YEAR.png")
+        val undated = PhotoFile(Paths.get("/photos/NONE.png"))
+        val undatedTarget = Paths.get("/photos/no-exif/NONE.png")
+        val plan = MovePlan(
+            moves = listOf(
+                MoveItem(full, fullTarget),
+                MoveItem(yearOnly, yearOnlyTarget),
+                MoveItem(undated, undatedTarget),
+            ),
+            errors = listOf(undated),
+        )
+        val outcomes = listOf(MoveOutcome(MoveItem(full, fullTarget), success = false, reason = "目標已存在"))
 
         setContent {
             // Render inside a Column with a weighted sibling, matching how PlanSection sits below
@@ -34,11 +45,14 @@ class PlanResultViewTest {
             }
         }
 
-        // Plan detail lists each file's target date folder (P2① from review).
-        onNodeWithText("IMG1.jpg  →  2024-03-15").assertIsDisplayed()
-        onNodeWithText("計畫：1 筆將搬移，0 筆無日期").assertIsDisplayed()
+        // Plan detail lists each file's target leaf folder, including the year-only and no-exif rows.
+        onNodeWithText("FULL.jpg  →  2024-03-15").assertIsDisplayed()
+        onNodeWithText("YEAR.png  →  2008-00-00").assertIsDisplayed()
+        onNodeWithText("NONE.png  →  no-exif").assertIsDisplayed()
+        // Non-overlapping label: total moves, of which N have no EXIF date.
+        onNodeWithText("計畫：3 筆將搬移，其中 1 筆無 EXIF 日期搬往 no-exif/").assertIsDisplayed()
         // Execution summary plus the per-item failure line.
         onNodeWithText("執行結果：成功 0、失敗 1").assertIsDisplayed()
-        onNodeWithText("✗ IMG1.jpg：目標已存在").assertIsDisplayed()
+        onNodeWithText("✗ FULL.jpg：目標已存在").assertIsDisplayed()
     }
 }

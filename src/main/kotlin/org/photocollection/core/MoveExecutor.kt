@@ -9,10 +9,11 @@ data class MoveOutcome(val item: MoveItem, val success: Boolean, val reason: Str
 object MoveExecutor {
 
     /**
-     * Execute [plan]'s moves item by item. Each item creates its date subfolder idempotently
-     * (`Files.createDirectories`) and moves the file with `Files.move` invoked with no
-     * replace-existing option, so an already-occupied target throws and is caught as a conflict.
-     * One item's failure never aborts the rest, and a failed item leaves its source file unchanged.
+     * Execute [plan]'s moves item by item. Each item creates its nested year/date (or `no-exif`)
+     * subfolder idempotently with `Files.createDirectories`, which creates every missing parent in
+     * the path, then moves the file with `Files.move` invoked with no replace-existing option, so an
+     * already-occupied target throws and is caught as a conflict. One item's failure never aborts
+     * the rest, and a failed item leaves its source file unchanged.
      */
     fun execute(plan: MovePlan): List<MoveOutcome> = plan.moves.map { item ->
         runCatching {

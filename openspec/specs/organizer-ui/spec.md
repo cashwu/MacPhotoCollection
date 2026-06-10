@@ -48,41 +48,40 @@ tests:
 ---
 ### Requirement: Display file list and error list
 
-The application SHALL display the list of organizable image files and the list of files that have no readable EXIF capture date. Each list SHALL show its item count.
+The application SHALL display a list of organizable image files and a list of files that have no readable EXIF capture date. An organizable image file is one the system will move into a date-based folder: a file with a full capture date or a file with a year-only date. Each list SHALL show its item count.
 
-#### Scenario: Lists populated after scan
+For each organizable file the application SHALL show the name of the target folder the file will be moved into: a `yyyy-MM-dd` folder for a full capture date, and a `yyyy-00-00` folder for a year-only date. A file with no readable EXIF capture date SHALL appear in the no-date list; such a file is still moved into the shared `no-exif` folder, but it is surfaced in the no-date list so the user can see the count of files without a usable EXIF date. A year-only file SHALL NOT be omitted from both lists: because it is moved, it SHALL appear in the organizable list rather than silently disappearing from the display while still being moved.
 
-- **WHEN** a folder is scanned containing 5 dated images and 2 undated images
-- **THEN** the file list shows 5 items with count 5 and the error list shows 2 items with count 2
+#### Scenario: Lists populated after scan with full, year-only, and undated files
+
+- **WHEN** a folder is scanned containing 5 images with a full capture date, 1 image with a year-only date, and 2 images with no usable EXIF date
+- **THEN** the organizable file list shows 6 items with count 6 — the 5 full-date files showing their `yyyy-MM-dd` target folder and the year-only file showing its `yyyy-00-00` target folder — and the no-date list shows 2 items with count 2
+
+#### Scenario: Year-only file is visible, not silently moved
+
+- **WHEN** a scanned image has a year-only EXIF date and therefore targets a `yyyy-00-00` folder
+- **THEN** the application shows that file in the organizable file list before any move, so the user sees it rather than having it moved without ever appearing in a displayed list
 
 
 <!-- @trace
-source: photo-organizer-mvp
-updated: 2026-06-08
+source: nested-date-folders
+updated: 2026-06-10
 code:
-  - gradle.properties
-  - gradle/wrapper/gradle-wrapper.properties
-  - gradlew
-  - src/main/kotlin/org/photocollection/core/ExifReader.kt
-  - src/main/kotlin/org/photocollection/core/Models.kt
   - src/main/kotlin/org/photocollection/core/MovePlanner.kt
-  - gradlew.bat
-  - src/main/resources/icons/app-icon.icns
-  - build.gradle.kts
+  - .agents/skills/spectra-propose-plus/SKILL.md
   - src/main/kotlin/org/photocollection/ui/App.kt
-  - src/main/kotlin/org/photocollection/core/PhotoScanner.kt
-  - gradle/wrapper/gradle-wrapper.jar
-  - settings.gradle.kts
-  - src/main/kotlin/org/photocollection/Main.kt
+  - src/main/kotlin/org/photocollection/core/Models.kt
+  - .agents/skills/spectra-apply-plus/SKILL.md
   - src/main/kotlin/org/photocollection/core/MoveExecutor.kt
-  - src/main/resources/icons/app-icon.png
+  - .agents/skills/spectra-commit/SKILL.md
+  - src/main/kotlin/org/photocollection/core/ExifReader.kt
 tests:
-  - src/test/kotlin/org/photocollection/core/MoveExecutorTest.kt
-  - src/test/kotlin/org/photocollection/core/ExifReaderTest.kt
-  - src/test/kotlin/org/photocollection/core/PhotoScannerTest.kt
-  - src/test/kotlin/org/photocollection/ui/PlanResultViewTest.kt
   - src/test/kotlin/org/photocollection/core/MovePlannerTest.kt
   - src/test/kotlin/org/photocollection/core/ModelsTest.kt
+  - src/test/kotlin/org/photocollection/ui/PlanResultViewTest.kt
+  - src/test/kotlin/org/photocollection/ui/OrganizerScanMappingTest.kt
+  - src/test/kotlin/org/photocollection/core/MoveExecutorTest.kt
+  - src/test/kotlin/org/photocollection/core/ExifReaderTest.kt
 -->
 
 ---

@@ -19,35 +19,67 @@ class MoveExecutorTest {
         return PhotoFile(path)
     }
 
-    // spec — "Successful execution"
+    // spec — "Successful execution": nested year/date folders and the shared no-exif folder
     @Test
-    fun `creates date subfolders and moves files reporting success`() {
+    fun `creates nested date and no-exif subfolders and moves files reporting success`() {
         val folder = Files.createTempDirectory("exec-test")
         val a = sourceFile(folder, "A.jpg", "a-content")
         val b = sourceFile(folder, "B.jpg", "b-content")
+        val c = sourceFile(folder, "C.jpg", "c-content")
+        val datedTarget = folder.resolve("2024").resolve("2024-03-15").resolve("A.jpg")
+        val yearOnlyTarget = folder.resolve("2008").resolve("2008-00-00").resolve("B.jpg")
+        val noExifTarget = folder.resolve("no-exif").resolve("C.jpg")
         val plan = MovePlan(
             moves = listOf(
-                MoveItem(a, folder.resolve("2024-03-15").resolve("A.jpg")),
-                MoveItem(b, folder.resolve("2024-03-15").resolve("B.jpg")),
+                MoveItem(a, datedTarget),
+                MoveItem(b, yearOnlyTarget),
+                MoveItem(c, noExifTarget),
             ),
-            errors = emptyList(),
+            errors = listOf(c),
         )
 
         val outcomes = MoveExecutor.execute(plan)
 
         assertTrue(outcomes.all { it.success })
-        assertTrue(folder.resolve("2024-03-15").resolve("A.jpg").exists())
-        assertTrue(folder.resolve("2024-03-15").resolve("B.jpg").exists())
+        assertTrue(datedTarget.exists())
+        assertTrue(yearOnlyTarget.exists())
+        assertTrue(noExifTarget.exists())
         assertFalse(a.path.exists())
         assertFalse(b.path.exists())
-        assertEquals("a-content", folder.resolve("2024-03-15").resolve("A.jpg").readText())
+        assertFalse(c.path.exists())
+        assertEquals("a-content", datedTarget.readText())
+    }
+
+    // contract — no-exif/ collision: two undated files share a name in the shared folder (a new
+    // collision surface; the flat version never moved undated files so they could not collide).
+    // The two sources live in separate subfolders so they can share the file name on disk.
+    @Test
+    fun `skips same-name collision within the no-exif folder leaving the loser unchanged`() {
+        val folder = Files.createTempDirectory("exec-test")
+        val winner = sourceFile(folder.resolve("a").createDirectories(), "screenshot.png", "winner-content")
+        val loser = sourceFile(folder.resolve("b").createDirectories(), "screenshot.png", "loser-content")
+        val sharedTarget = folder.resolve("no-exif").resolve("screenshot.png")
+        val plan = MovePlan(
+            moves = listOf(
+                MoveItem(winner, sharedTarget),
+                MoveItem(loser, sharedTarget),
+            ),
+            errors = listOf(winner, loser),
+        )
+
+        val outcomes = MoveExecutor.execute(plan)
+
+        assertTrue(outcomes[0].success)
+        assertFalse(outcomes[1].success)
+        assertEquals("winner-content", sharedTarget.readText())
+        assertEquals("loser-content", loser.path.readText())
     }
 
     // spec — "execution with pre-existing and intra-run conflicts"
     @Test
     fun `skips pre-existing and intra-run conflicts leaving failed sources unchanged`() {
         val folder = Files.createTempDirectory("exec-test")
-        val dateFolder = folder.resolve("2024-03-15").createDirectories()
+        val dateFolder = folder.resolve("2024").resolve("2024-03-15").createDirectories()
         dateFolder.resolve("A.jpg").writeText("existing-A")
 
         val a = sourceFile(folder, "A.jpg", "source-A")
