@@ -15,7 +15,13 @@ const val NO_EXIF_FOLDER: String = "no-exif"
 /** The four-digit zero-padded year folder name (for example year 7 renders as `0007`). */
 fun yearFolderName(year: Int): String = "%04d".format(year)
 
-/** The `yyyy-00-00` date-folder name for a year-only result, nested under [yearFolderName]. */
+/** The two-digit zero-padded month folder name. */
+fun monthFolderName(month: Int): String = "%02d".format(month)
+
+/** The `00` month folder name for a year-only result, nested under [yearFolderName]. */
+const val YEAR_ONLY_MONTH_FOLDER: String = "00"
+
+/** The `yyyy-00-00` date-folder name for a year-only result, nested under [YEAR_ONLY_MONTH_FOLDER]. */
 fun yearOnlyFolderName(year: Int): String = "%04d-00-00".format(year)
 
 /** Which tier of the date fallback chain produced a capture date. */
@@ -28,6 +34,9 @@ data class CaptureDate(val date: LocalDate, val source: DateSource) {
 
     /** The four-digit year folder this date's date folder nests under. */
     fun yearFolderName(): String = yearFolderName(date.year)
+
+    /** The two-digit month folder this date's date folder nests under. */
+    fun monthFolderName(): String = monthFolderName(date.monthValue)
 
     companion object {
         private val ISO_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -43,8 +52,9 @@ data class MoveItem(val source: PhotoFile, val target: Path, val dateResult: Dat
 
 /**
  * A computed move plan. [moves] holds every scanned file's target — dated files to a nested
- * year/date folder, year-only files to a `yyyy-00-00` folder, and no-date files to the shared
- * `no-exif/` folder. [errors] lists the no-date files (which are still moved into `no-exif/`) so
- * the UI can show their count; it is classification info, not "files that are not moved".
+ * year/month/date folder, year-only files to a `yyyy/00/yyyy-00-00` folder, and no-date files to
+ * the shared `no-exif/` folder. [errors] lists the no-date files (which are still moved into
+ * `no-exif/`) so the UI can show their count; it is classification info, not "files that are not
+ * moved".
  */
 data class MovePlan(val moves: List<MoveItem>, val errors: List<PhotoFile>)

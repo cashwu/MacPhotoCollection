@@ -21,13 +21,13 @@ class OrganizerScanMappingTest {
     private fun photo(name: String) = PhotoFile(Paths.get("/photos/$name"))
 
     @Test
-    fun `full date maps to its yyyy-MM-dd target folder`() {
-        assertEquals("2024-03-15", organizableTargetFolder(DateResult.Found(CaptureDate(LocalDate.of(2024, 3, 15), DateSource.EXIF))))
+    fun `full date maps to its yyyy MM yyyy-MM-dd target folder path`() {
+        assertEquals("2024/03/2024-03-15", organizableTargetFolder(DateResult.Found(CaptureDate(LocalDate.of(2024, 3, 15), DateSource.EXIF))))
     }
 
     @Test
-    fun `year-only maps to its yyyy-00-00 target folder`() {
-        assertEquals("2008-00-00", organizableTargetFolder(DateResult.YearOnly(2008)))
+    fun `year-only maps to its yyyy 00 yyyy-00-00 target folder path`() {
+        assertEquals("2008/00/2008-00-00", organizableTargetFolder(DateResult.YearOnly(2008)))
     }
 
     @Test
@@ -47,7 +47,7 @@ class OrganizerScanMappingTest {
         val errors = scanned.filter { it.second is DateResult.NoDate }.map { it.first }
 
         assertEquals(
-            listOf("full.jpg" to "2024-03-15", "year.png" to "2008-00-00"),
+            listOf("full.jpg" to "2024/03/2024-03-15", "year.png" to "2008/00/2008-00-00"),
             organizable.map { it.first.fileName to it.second },
         )
         assertEquals(listOf("none.png"), errors.map { it.fileName })

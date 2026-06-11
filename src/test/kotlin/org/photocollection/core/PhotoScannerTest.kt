@@ -49,7 +49,7 @@ class PhotoScannerTest {
     @Test
     fun `already-organized folder returns empty list without recursing into date subfolders`() {
         val folder = tempFolder()
-        val dateSub = folder.resolve("2024-03-15").createDirectories()
+        val dateSub = folder.resolve("2024").resolve("03").resolve("2024-03-15").createDirectories()
         dateSub.resolve("IMG_0001.jpg").createFile()
 
         val result = PhotoScanner.scan(folder)

@@ -31,7 +31,7 @@ class MovePlannerTest {
 
     // spec `photo-organization` — "plan grouping" example, extended with year-only and no-date
     @Test
-    fun `full year-only and undated files map to nested year date and no-exif targets`() {
+    fun `full year-only and undated files map to nested year month date and no-exif targets`() {
         val folder = Files.createTempDirectory("planner-test")
         val march15 = LocalDate.of(2024, 3, 15)
         val entries = listOf(
@@ -45,15 +45,15 @@ class MovePlannerTest {
 
         // Every scanned file receives a move target, built segment by segment from the root.
         assertEquals(
-            folder.resolve("2024").resolve("2024-03-15").resolve("IMG1.jpg"),
+            folder.resolve("2024").resolve("03").resolve("2024-03-15").resolve("IMG1.jpg"),
             targetOf(plan, "IMG1.jpg"),
         )
         assertEquals(
-            folder.resolve("2024").resolve("2024-03-15").resolve("IMG2.jpg"),
+            folder.resolve("2024").resolve("03").resolve("2024-03-15").resolve("IMG2.jpg"),
             targetOf(plan, "IMG2.jpg"),
         )
         assertEquals(
-            folder.resolve("2008").resolve("2008-00-00").resolve("IMG3.jpg"),
+            folder.resolve("2008").resolve("00").resolve("2008-00-00").resolve("IMG3.jpg"),
             targetOf(plan, "IMG3.jpg"),
         )
         assertEquals(
@@ -99,8 +99,14 @@ class MovePlannerTest {
 
         val root = relativeFolder.toAbsolutePath()
         assertTrue(plan.moves.all { it.target.isAbsolute }, "every target must be an absolute path")
-        assertEquals(root.resolve("2024").resolve("2024-03-15").resolve("IMG1.jpg"), targetOf(plan, "IMG1.jpg"))
-        assertEquals(root.resolve("2008").resolve("2008-00-00").resolve("IMG2.jpg"), targetOf(plan, "IMG2.jpg"))
+        assertEquals(
+            root.resolve("2024").resolve("03").resolve("2024-03-15").resolve("IMG1.jpg"),
+            targetOf(plan, "IMG1.jpg"),
+        )
+        assertEquals(
+            root.resolve("2008").resolve("00").resolve("2008-00-00").resolve("IMG2.jpg"),
+            targetOf(plan, "IMG2.jpg"),
+        )
         assertEquals(root.resolve("no-exif").resolve("IMG3.jpg"), targetOf(plan, "IMG3.jpg"))
     }
 

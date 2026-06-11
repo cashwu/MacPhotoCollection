@@ -31,6 +31,17 @@ class ModelsTest {
     }
 
     @Test
+    fun `month folder names zero-pad to two digits`() {
+        assertEquals("03", monthFolderName(3))
+        assertEquals("12", monthFolderName(12))
+    }
+
+    @Test
+    fun `year-only month folder is zero month`() {
+        assertEquals("00", YEAR_ONLY_MONTH_FOLDER)
+    }
+
+    @Test
     fun `year folder names zero-pad to four digits`() {
         assertEquals("0007", yearFolderName(7))
         assertEquals("0007-00-00", yearOnlyFolderName(7))
@@ -39,5 +50,10 @@ class ModelsTest {
     @Test
     fun `CaptureDate exposes its four-digit year folder`() {
         assertEquals("2008", CaptureDate(LocalDate.of(2008, 3, 15), DateSource.EXIF).yearFolderName())
+    }
+
+    @Test
+    fun `CaptureDate exposes its two-digit month folder`() {
+        assertEquals("03", CaptureDate(LocalDate.of(2008, 3, 15), DateSource.EXIF).monthFolderName())
     }
 }

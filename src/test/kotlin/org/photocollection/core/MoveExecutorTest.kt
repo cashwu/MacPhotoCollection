@@ -24,15 +24,15 @@ class MoveExecutorTest {
     private fun exif(year: Int, month: Int, day: Int): DateResult =
         DateResult.Found(CaptureDate(LocalDate.of(year, month, day), DateSource.EXIF))
 
-    // spec — "Successful execution": nested year/date folders and the shared no-exif folder
+    // spec — "Successful execution": nested year/month/date folders and the shared no-exif folder
     @Test
-    fun `creates nested date and no-exif subfolders and moves files reporting success`() {
+    fun `creates nested date month and no-exif subfolders and moves files reporting success`() {
         val folder = Files.createTempDirectory("exec-test")
         val a = sourceFile(folder, "A.jpg", "a-content")
         val b = sourceFile(folder, "B.jpg", "b-content")
         val c = sourceFile(folder, "C.jpg", "c-content")
-        val datedTarget = folder.resolve("2024").resolve("2024-03-15").resolve("A.jpg")
-        val yearOnlyTarget = folder.resolve("2008").resolve("2008-00-00").resolve("B.jpg")
+        val datedTarget = folder.resolve("2024").resolve("03").resolve("2024-03-15").resolve("A.jpg")
+        val yearOnlyTarget = folder.resolve("2008").resolve("00").resolve("2008-00-00").resolve("B.jpg")
         val noExifTarget = folder.resolve("no-exif").resolve("C.jpg")
         val plan = MovePlan(
             moves = listOf(
@@ -84,7 +84,7 @@ class MoveExecutorTest {
     @Test
     fun `skips pre-existing and intra-run conflicts leaving failed sources unchanged`() {
         val folder = Files.createTempDirectory("exec-test")
-        val dateFolder = folder.resolve("2024").resolve("2024-03-15").createDirectories()
+        val dateFolder = folder.resolve("2024").resolve("03").resolve("2024-03-15").createDirectories()
         dateFolder.resolve("A.jpg").writeText("existing-A")
 
         val a = sourceFile(folder, "A.jpg", "source-A")
@@ -117,14 +117,23 @@ class MoveExecutorTest {
     @Test
     fun `marks item failed when date path is occupied by a non-directory without aborting`() {
         val folder = Files.createTempDirectory("exec-test")
-        folder.resolve("2024-03-15").writeText("not a directory")
+        val yearFolder = folder.resolve("2024").createDirectories()
+        yearFolder.resolve("03").writeText("not a directory")
 
         val blocked = sourceFile(folder, "D.jpg", "d-content")
         val ok = sourceFile(folder, "E.jpg", "e-content")
         val plan = MovePlan(
             moves = listOf(
-                MoveItem(blocked, folder.resolve("2024-03-15").resolve("D.jpg"), exif(2024, 3, 15)),
-                MoveItem(ok, folder.resolve("2024-03-16").resolve("E.jpg"), exif(2024, 3, 16)),
+                MoveItem(
+                    blocked,
+                    folder.resolve("2024").resolve("03").resolve("2024-03-15").resolve("D.jpg"),
+                    exif(2024, 3, 15),
+                ),
+                MoveItem(
+                    ok,
+                    folder.resolve("2024").resolve("04").resolve("2024-04-16").resolve("E.jpg"),
+                    exif(2024, 4, 16),
+                ),
             ),
             errors = emptyList(),
         )
@@ -134,6 +143,6 @@ class MoveExecutorTest {
         assertFalse(outcomes[0].success)
         assertEquals("d-content", blocked.path.readText())
         assertTrue(outcomes[1].success)
-        assertTrue(folder.resolve("2024-03-16").resolve("E.jpg").exists())
+        assertTrue(folder.resolve("2024").resolve("04").resolve("2024-04-16").resolve("E.jpg").exists())
     }
 }

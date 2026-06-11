@@ -46,12 +46,15 @@ import org.photocollection.core.DateResult
 import org.photocollection.core.DateSource
 import org.photocollection.core.ExifReader
 import org.photocollection.core.MoveExecutor
+import org.photocollection.core.MoveItem
 import org.photocollection.core.MoveOutcome
 import org.photocollection.core.MovePlan
 import org.photocollection.core.MovePlanner
 import org.photocollection.core.PhotoFile
 import org.photocollection.core.PhotoScanner
 import org.photocollection.core.ScanResult
+import org.photocollection.core.YEAR_ONLY_MONTH_FOLDER
+import org.photocollection.core.yearFolderName
 import org.photocollection.core.yearOnlyFolderName
 import java.nio.file.Files
 import java.nio.file.Path
@@ -208,7 +211,7 @@ internal fun PlanResultView(plan: MovePlan?, outcomes: List<MoveOutcome>) {
                 items(plan.moves) { move ->
                     val source = dateSourceOf(move.dateResult)
                     val marker = if (source != null) "  [$source]" else ""
-                    Text("${move.source.fileName}  →  ${move.target.parent.fileName}$marker")
+                    Text("${move.source.fileName}  →  ${moveTargetFolder(move)}$marker")
                 }
             }
         }
@@ -241,16 +244,29 @@ private suspend fun loadPreview(path: Path): ImageBitmap? = withContext(Dispatch
 }
 
 /**
- * The target date-folder display name for an organizable file — a full date shows its `yyyy-MM-dd`
- * folder and a year-only result shows its `yyyy-00-00` folder — or null for a no-date file, which
- * belongs in the error list rather than the organizable file list. Both organizable outcomes are
- * moved, so neither may disappear from the displayed lists. Kept internal so the scan mapping is
- * directly testable without the private [OrganizerModel].
+ * The target folder path for an organizable file — a full date shows `yyyy/MM/yyyy-MM-dd` and a
+ * year-only result shows `yyyy/00/yyyy-00-00` — or null for a no-date file, which belongs in the
+ * error list rather than the organizable file list. Both organizable outcomes are moved, so neither
+ * may disappear from the displayed lists. Kept internal so the scan mapping is directly testable
+ * without the private [OrganizerModel].
  */
 internal fun organizableTargetFolder(result: DateResult): String? = when (result) {
-    is DateResult.Found -> result.date.folderName()
-    is DateResult.YearOnly -> yearOnlyFolderName(result.year)
+    is DateResult.Found -> "${result.date.yearFolderName()}/${result.date.monthFolderName()}/${result.date.folderName()}"
+    is DateResult.YearOnly -> "${yearFolderName(result.year)}/$YEAR_ONLY_MONTH_FOLDER/${yearOnlyFolderName(result.year)}"
     is DateResult.NoDate -> null
+}
+
+/** The target folder path to show for any planned move, derived from the actual planned target. */
+internal fun moveTargetFolder(move: MoveItem): String {
+    val parent = move.target.parent
+    return when (move.dateResult) {
+        is DateResult.Found, is DateResult.YearOnly -> listOf(
+            parent.parent.parent.fileName,
+            parent.parent.fileName,
+            parent.fileName,
+        ).joinToString("/") { it.toString() }
+        is DateResult.NoDate -> parent.fileName.toString()
+    }
 }
 
 /**
